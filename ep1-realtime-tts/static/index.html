@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>EP1 Realtime TTS Demo</h1>
+    <input id="msg" value="Hello voice agent" />
+    <button onclick="sendMsg()">Send</button>
+    <pre id="out"></pre>
+    <script>
+      const out = document.getElementById('out');
+      const ws = new WebSocket(`ws://${location.host}/ws`);
+      ws.onmessage = (e) => out.textContent += e.data + '\n';
+      function sendMsg(){
+        out.textContent='';
+        ws.send(JSON.stringify({text: document.getElementById('msg').value}));
+      }
+    </script>
+  </body>
+</html>

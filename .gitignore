@@ -1,0 +1,12 @@
+# Byte-compiled / virtual env
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Env
+.env
+
+# OS/editor
+.DS_Store
+Thumbs.db
