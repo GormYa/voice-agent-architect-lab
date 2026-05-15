@@ -28,7 +28,7 @@ Use the generated https domain in Twilio webhook:
 
 - Call your Twilio number.
 - Speak a test phrase while agent audio is active.
-- Show `ep2-telephony-bridge/logs/call_transcripts.jsonl` entries for echo artifacts.
+- Show `logs/call_transcripts.jsonl` entries for echo artifacts.
 
 ### 4) Restart with AEC ON
 
@@ -39,6 +39,11 @@ python -m uvicorn demo_twilio_server:app --host 0.0.0.0 --port 8022
 
 - Place same call again with same test phrase.
 - Show `suppressed`, `correlation`, and cleaner transcript rows in JSONL.
+- Print per-call metrics:
+
+```powershell
+python summarize_logs.py
+```
 
 ### 5) Terminal-only fallback
 

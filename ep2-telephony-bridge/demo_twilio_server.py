@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import base64
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,9 +10,10 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 
 from bridge.media_stream import process_twilio_media_event
+from bridge.mu_law import mulaw_to_pcm16
 
 app = FastAPI(title="EP2 Twilio AEC Demo")
-LOG_PATH = Path("ep2-telephony-bridge/logs/call_transcripts.jsonl")
+LOG_PATH = Path("logs/call_transcripts.jsonl")
 
 
 def _log(record: dict) -> None:
@@ -62,7 +64,27 @@ async def twilio_media(ws: WebSocket) -> None:
                 continue
 
             if event_type == "media":
-                # For a stricter demo, use outbound speaker audio as last_speaker_frame reference.
+                media = payload.get("media", {})
+                track = media.get("track", "unknown")
+                media_payload = media.get("payload", "")
+
+                if track == "outbound" and media_payload:
+                    # Outbound audio is the best speaker reference for AEC.
+                    ulaw = base64.b64decode(media_payload)
+                    last_speaker_frame = mulaw_to_pcm16(ulaw)
+                    _log({
+                        "ts_utc": datetime.now(timezone.utc).isoformat(),
+                        "stream_sid": stream_sid,
+                        "event": "media",
+                        "track": "outbound",
+                        "aec_enabled": os.getenv("AEC_ENABLED", "1") == "1",
+                        "note": "reference_frame_updated",
+                    })
+                    continue
+
+                if track != "inbound":
+                    continue
+
                 processed_json = process_twilio_media_event(raw, last_speaker_frame=last_speaker_frame)
                 processed = json.loads(processed_json)
                 dbg = processed.get("debug", {})
@@ -71,14 +93,12 @@ async def twilio_media(ws: WebSocket) -> None:
                     "ts_utc": datetime.now(timezone.utc).isoformat(),
                     "stream_sid": stream_sid,
                     "event": "media",
+                    "track": "inbound",
                     "aec_enabled": dbg.get("aec_enabled"),
                     "suppressed": dbg.get("suppressed"),
                     "correlation": dbg.get("correlation"),
                     "stt_text": dbg.get("stt_text"),
                 })
-
-                # Keep a simple rolling reference for demo purposes.
-                last_speaker_frame = b"\x11\x22" * 160
                 continue
 
             if event_type == "stop":

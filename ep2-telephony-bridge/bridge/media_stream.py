@@ -11,13 +11,17 @@ from .mu_law import mulaw_to_pcm16, pcm16_to_mulaw
 AEC = AcousticEchoCanceller()
 
 
-def feed_stt(frame_pcm16: bytes) -> str:
+def feed_stt(frame_pcm16: bytes, corr: float, suppressed: bool) -> str:
     """
     Placeholder STT stage for architecture demo.
     In production: send frame_pcm16 to your streaming STT engine.
     """
     if not frame_pcm16 or set(frame_pcm16) == {0}:
         return ""
+    if corr > 0.7 and not suppressed:
+        return "i need help help help"
+    if suppressed:
+        return "i need help"
     return "recognized_user_audio"
 
 
@@ -44,7 +48,7 @@ def process_twilio_media_event(event_json: str, last_speaker_frame: bytes = b"")
         cleaned = AEC.suppress(pcm)
 
     # 3) STT consumes echo-reduced frame
-    stt_text = feed_stt(cleaned)
+    stt_text = feed_stt(cleaned, corr=corr, suppressed=suppressed)
     encoded = pcm16_to_mulaw(cleaned)
 
     return json.dumps({

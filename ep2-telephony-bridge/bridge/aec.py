@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import audioop
 from collections import deque
+from math import sqrt
+from struct import iter_unpack
 
 
 class AcousticEchoCanceller:
@@ -32,14 +33,16 @@ class AcousticEchoCanceller:
 
         mic = mic_frame_pcm16[:n]
         spk = ref[:n]
-        dot = audioop.mul(audioop.add(mic, b"\x00" * n, 2), 2, 1.0)
-        # Reuse rms energy for stable normalization.
-        mic_rms = max(audioop.rms(mic, 2), 1)
-        spk_rms = max(audioop.rms(spk, 2), 1)
-        # Quick overlap score via average absolute delta to the reference.
-        diff = audioop.rms(audioop.add(mic, audioop.mul(spk, 2, -1.0), 2), 2)
-        similarity = 1.0 - min(diff / max(mic_rms + spk_rms, 1), 1.0)
-        _ = dot  # keep for readability while preserving lightweight implementation
+        mic_samples = [s[0] for s in iter_unpack("<h", mic)]
+        spk_samples = [s[0] for s in iter_unpack("<h", spk)]
+        if not mic_samples or not spk_samples:
+            return 0.0
+
+        mic_rms = max(sqrt(sum(v * v for v in mic_samples) / len(mic_samples)), 1.0)
+        spk_rms = max(sqrt(sum(v * v for v in spk_samples) / len(spk_samples)), 1.0)
+        diffs = [a - b for a, b in zip(mic_samples, spk_samples)]
+        diff_rms = sqrt(sum(v * v for v in diffs) / len(diffs))
+        similarity = 1.0 - min(diff_rms / max(mic_rms + spk_rms, 1.0), 1.0)
         return max(0.0, min(similarity, 1.0))
 
     def should_suppress(self, mic_frame_pcm16: bytes) -> bool:
