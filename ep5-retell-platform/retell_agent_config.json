@@ -1,0 +1,85 @@
+{
+  "agent_name": "Alex Real Estate Lead Qualifier",
+  "version": "ep5-dashboard-demo",
+  "language": "en-US",
+  "timezone": "America/New_York",
+  "custom_functions": [
+    {
+      "name": "retell_webhook",
+      "description": "Persist a qualified real estate lead and continue the transfer.",
+      "method": "POST",
+      "url": "http://localhost:8000/retell-webhook"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "greeting",
+      "name": "Greeting",
+      "type": "conversation",
+      "prompt": "You are a friendly real estate lead-qualification assistant. Greet the caller warmly, introduce yourself as Alex, and ask whether they are looking to buy or sell.",
+      "variables": [
+        {
+          "name": "intent",
+          "type": "string",
+          "description": "Whether the caller wants to buy or sell."
+        }
+      ],
+      "transitions": [
+        {
+          "condition": "intent is not empty",
+          "target": "Qualification"
+        }
+      ]
+    },
+    {
+      "id": "qualification",
+      "name": "Qualification",
+      "type": "conversation",
+      "prompt": "Ask about budget, timeline, and location one question at a time. Keep the tone warm and concise. If the caller answers all three, mark the caller as qualified. If the caller disengages or declines to continue, mark the caller as not qualified.",
+      "variables": [
+        {
+          "name": "budget",
+          "type": "string",
+          "description": "The caller's target budget or price range."
+        },
+        {
+          "name": "timeline",
+          "type": "string",
+          "description": "When the caller wants to buy or sell."
+        },
+        {
+          "name": "location",
+          "type": "string",
+          "description": "The target neighborhood, city, or region."
+        }
+      ],
+      "transitions": [
+        {
+          "condition": "budget is not empty and timeline is not empty and location is not empty",
+          "target": "Qualified"
+        },
+        {
+          "condition": "caller disengages",
+          "target": "Not Qualified"
+        }
+      ]
+    },
+    {
+      "id": "qualified",
+      "name": "Qualified",
+      "type": "conversation",
+      "prompt": "Perfect. Let me connect you with one of our agents.",
+      "custom_function": {
+        "name": "retell_webhook",
+        "method": "POST",
+        "url": "http://localhost:8000/retell-webhook"
+      }
+    },
+    {
+      "id": "not_qualified",
+      "name": "Not Qualified",
+      "type": "end_call",
+      "prompt": "Thanks for your time. I'll send over some resources."
+    }
+  ]
+}
